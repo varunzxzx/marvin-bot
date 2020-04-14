@@ -1,0 +1,11 @@
+---
+  applications:
+  - name: marvin-bot
+    path: .
+    buildpacks: 
+      - nodejs_buildpack
+    memory: 1G
+    # services:
+    #   - my-destination
+    #   - my-connectivity
+    #   - my-xsuaa
