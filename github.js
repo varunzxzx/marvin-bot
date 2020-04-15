@@ -54,9 +54,7 @@ const draftRelease = (url, data) => {
       let draftUrl = url
 
       drafts.forEach(function(draft) {
-        console.log(draft["name"], data["label"], draft["draft"])
         if(draft["name"] === data["label"] && draft["draft"]) {
-          console.log("here")
           draftUrl = draft["url"]
 
           // append body with old content
@@ -93,7 +91,6 @@ const assignReviewer = (prUrl) => {
   const data = {
     "reviewers": JSON.parse(process.env["REVIEWERS"])
   }
-  console.log(data, url)
   return request(url, {
     method: 'post',
     auth: {

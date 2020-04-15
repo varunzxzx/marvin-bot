@@ -17,7 +17,7 @@ const port = process.env.PORT || 3000;
 
 const { fetchPR, comment, draftRelease, assignReviewer } = require('./github')
 
-const { findStringInArray, getAllLines, beautifyDraft } = require("./helper")
+const { findStringInArray, getAllLines } = require("./helper")
 
 const EMOJI_WRONG = ":heavy_minus_sign:"
 const EMOJI_RIGHT = ":white_check_mark:"
@@ -134,6 +134,7 @@ app.get('/fetch-pr/:owner/:repo/:number', (req, res) => {
 
 app.post('/webhook', (req, res) => {
   let data = JSON.parse(req.body["payload"])
+  console.log(data["action"])
   fs.writeFile('webhook.json', JSON.stringify(data), function (err) {
     if (err) throw err;
   });
@@ -152,16 +153,16 @@ app.post('/webhook', (req, res) => {
 
   console.log(beautifyMessage)
 
-  // comment(pr["comments_url"], beautifyMessage)
-  //   .then(resp => console.log("Comment posted"))
-  //   .catch(err => console.log(err))
+  comment(pr["comments_url"], beautifyMessage)
+    .then(resp => console.log("Comment posted"))
+    .catch(err => console.log(err))
 
   // assign reviewers
   const url = pr["url"]
   if(!pr["requested_reviewers"].length && process.env["REPO"] === pr["base"]["repo"]["name"]) {
-    // assignReviewer(url)
-    // .then(resp => console.log("Reviewer assigned"))
-    // .catch(err => console.log(err))
+    assignReviewer(url)
+    .then(resp => console.log("Reviewer assigned"))
+    .catch(err => console.log(err))
   }  
 
   if(flag) {

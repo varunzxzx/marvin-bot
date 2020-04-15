@@ -30,9 +30,28 @@ function appendPRBody(newData, oldData) {
 
   const oldPurpose = getAllLines("Purpose", "...", lines).split("\n")
 
-  console.log("oldPurpose", oldPurpose)
+  let newPurpose = oldPurpose.map(purpose => {
+    let count = 1;
+    if(purpose.split("-").length > 1) {
+      count = parseInt(purpose.split("-")[1])
+    }
+    purpose = purpose.split("-")[0]
 
-  const newPurpose = [...new Set(newData["purpose"].concat(oldPurpose))]
+    if(newData["purpose"].indexOf(purpose) !== -1) {
+      count++;
+      const index = newData["purpose"].indexOf(purpose)
+      newData["purpose"].splice(index, 1);
+    }
+
+    if(count > 1) {
+      purpose = purpose + " -" + count
+    }
+    return purpose
+  })
+
+  newPurpose = newPurpose.concat(newData["purpose"])
+
+  console.log("newPurpose", newPurpose)
 
   return {
     "name": newName,
