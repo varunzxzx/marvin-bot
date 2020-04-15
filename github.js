@@ -1,4 +1,5 @@
 const request = require('request-promise')
+const { appendPRBody, beautifyDraft } = require("./helper")
 
 const api = process.env.GITHUB_API
 const username = process.env.GITHUB_USERNAME
@@ -36,8 +37,9 @@ const comment = (url, message) => {
 }
 
 const draftRelease = (url, data) => {
+  
   return request(url, {
-    method: 'post',
+    method: 'get',
     auth: {
       user: username,
       pass: token
@@ -45,9 +47,45 @@ const draftRelease = (url, data) => {
     headers: {
       'User-Agent': 'request'
     },
-    body: data,
     json: true
   })
+    .then(resp => {
+      const drafts = resp
+      let draftUrl = url
+
+      drafts.forEach(function(draft) {
+        console.log(draft["name"], data["label"], draft["draft"])
+        if(draft["name"] === data["label"] && draft["draft"]) {
+          console.log("here")
+          draftUrl = draft["url"]
+
+          // append body with old content
+          data = appendPRBody(data, draft["body"])
+        }
+      })
+
+      const { name, description, jira, purpose} = data
+      const beautifyBody = beautifyDraft({ name, description, jira, purpose})
+      const payload = {name: label, body: beautifyBody, tag_name: label, draft: true}      
+
+      return {draftUrl, payload}
+    })
+    .then(({draftUrl, payload}) => {
+      // return "hello"
+      return request(draftUrl, {
+        method: 'post',
+        auth: {
+          user: username,
+          pass: token
+        },
+        headers: {
+          'User-Agent': 'request'
+        },
+        body: payload,
+        json: true
+      })
+    })
+
 }
 
 const assignReviewer = (prUrl) => {

@@ -17,17 +17,12 @@ const port = process.env.PORT || 3000;
 
 const { fetchPR, comment, draftRelease, assignReviewer } = require('./github')
 
+const { findStringInArray, getAllLines, beautifyDraft } = require("./helper")
+
 const EMOJI_WRONG = ":heavy_minus_sign:"
 const EMOJI_RIGHT = ":white_check_mark:"
 
 ///////////// HELPER FUNCTIONS
-
-function findStringInArray(array, str) {
-  for(let i = 0; i < array.length; i++) {
-    if(array[i].includes(str)) return i;
-  }
-  return -1
-}
 
 function checkBody(body, isCheck) {
   body = body.replace(/[\r\n]+/g, '\n')
@@ -39,7 +34,7 @@ function checkBody(body, isCheck) {
     message.push(EMOJI_WRONG + "You did not change the example component name with your component name , please fill your component name correctly")
   } else {
     if(!isCheck) {
-      data["name"] = lines[index+1]
+      data["name"] = getAllLines("ML-Component name for PR", "Detailed Description of change this PR contains", lines)
     }
   }
 
@@ -49,7 +44,7 @@ function checkBody(body, isCheck) {
     message.push(EMOJI_WRONG + "You did not change the example description with your component name , please fill your  description as per this PR changes")
   } else {
     if(!isCheck) {
-      data["description"] = lines[index+1]
+      data["description"] = getAllLines("Detailed Description of change this PR contains", "Provide links or keys to any relevant tickets", lines)
     }
   }
 
@@ -59,7 +54,7 @@ function checkBody(body, isCheck) {
     message.push(EMOJI_WRONG + "You did not add the JIRA link , please fill the JIRA link correctly")
   } else {
     if(!isCheck) {
-      data["jira"] = lines[index+1]
+      data["jira"] = getAllLines("Provide links or keys to any relevant tickets", "PR is raised for what purpose to solve", lines)
     }
   }
 
@@ -69,7 +64,7 @@ function checkBody(body, isCheck) {
   const purpose = []
   const EMOJIS = [":zap:", ":construction:", ":tada:", ":penguin:", ":rotating_light:", ":pushpin:", ":alien:", ":truck:"]
   for(let i = index, j = 0; i < last; i++, j++) {
-    if(lines[i].includes("[x]")) {
+    if(lines[i].toLowerCase().includes("[x]")) {
       purpose.push(EMOJIS[j] + lines[i].split("]")[1])
     }
   }
@@ -157,29 +152,27 @@ app.post('/webhook', (req, res) => {
 
   console.log(beautifyMessage)
 
-  comment(pr["comments_url"], beautifyMessage)
-    .then(resp => console.log("Comment posted"))
-    .catch(err => console.log(err))
+  // comment(pr["comments_url"], beautifyMessage)
+  //   .then(resp => console.log("Comment posted"))
+  //   .catch(err => console.log(err))
 
   // assign reviewers
   const url = pr["url"]
   if(!pr["requested_reviewers"].length && process.env["REPO"] === pr["base"]["repo"]["name"]) {
-    assignReviewer(url)
-    .then(resp => console.log("Reviewer assigned"))
-    .catch(err => console.log(err))
+    // assignReviewer(url)
+    // .then(resp => console.log("Reviewer assigned"))
+    // .catch(err => console.log(err))
   }  
 
   if(flag) {
     console.log("drafting release...")
     const { name, description, jira, purpose } = checkBody(pr["body"], false)
     const label = pr["labels"][0]["name"]
-    const beautifyBody = beautifyDraft({ name, description, jira, purpose})
-    console.log(beautifyBody)
-    const payload = {name, body: beautifyBody, tag_name: label, draft: true}
-    draftRelease(data["repository"]["releases_url"].split("{")[0], payload)
+    if(data["action"] === "opened") {
+      draftRelease(data["repository"]["releases_url"].split("{")[0], { name, description, jira, purpose, label })
       .then(resp => console.log("Drafted a release"))
       .catch(err => console.log(err))
-
+    }
   }
 
   fs.writeFile('result.json', JSON.stringify({"pull_number": data["number"], beautifyMessage}), function (err) {
@@ -195,25 +188,6 @@ app.get('/result', (req, res) => {
     return res.status(200).json(data)
   });
 })
-
-function beautifyDraft(data) {
-  const listPurpose = purposes => {
-    return purposes.reduce((acc, purpose, i) => {
-      acc += " - "+ purpose + "\n"
-      return acc
-    }, "")
-  }
-  const beautifyBody = `
-  ### :pencil: Description
-  ${data["description"]}
-  ### :rocket: JIRA Link
-  ${data["jira"]}
-  ### :checkered_flag: Purpose
-  ${listPurpose(data["purpose"])}
-  `
-  return beautifyBody
-}
-
 
 
 ////////// TESTING ///////////////
