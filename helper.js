@@ -1,3 +1,5 @@
+const fs = require('fs');
+
 function getAllLines(stringA, stringB, array) {
   const start = findStringInArray(array, stringA)
   const end = findStringInArray(array, stringB)
@@ -82,4 +84,28 @@ function beautifyDraft(data) {
   return beautifyBody
 }
 
-module.exports = { getAllLines, findStringInArray, beautifyDraft, appendPRBody }
+function savePRNumberForDraft(number) {
+  fs.readFile("tracking.json", (err, data) => {
+    if(err) {
+      console.log(err)
+      return
+    }
+    data = JSON.parse(data)
+    data["prDrafts"].push(number)
+    
+    fs.writeFile("tracking.json", JSON.stringify(data), (err) => {
+      if(err) {
+        console.log(err)
+        return err
+      }
+      console.log("tracking updated")
+    })
+  })
+}
+
+function checkPRNumberForDraft(number) {
+  const data = JSON.parse(fs.readFileSync("tracking.json"))
+  return data["prDrafts"].indexOf(number) !== -1
+}
+
+module.exports = { getAllLines, findStringInArray, beautifyDraft, appendPRBody, savePRNumberForDraft, checkPRNumberForDraft }

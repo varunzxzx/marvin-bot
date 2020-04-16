@@ -17,7 +17,7 @@ const port = process.env.PORT || 3000;
 
 const { fetchPR, comment, draftRelease, assignReviewer } = require('./github')
 
-const { findStringInArray, getAllLines } = require("./helper")
+const { findStringInArray, getAllLines, savePRNumberForDraft, checkPRNumberForDraft } = require("./helper")
 
 const EMOJI_WRONG = ":heavy_minus_sign:"
 const EMOJI_RIGHT = ":white_check_mark:"
@@ -153,23 +153,24 @@ app.post('/webhook', (req, res) => {
 
   console.log(beautifyMessage)
 
-  comment(pr["comments_url"], beautifyMessage)
-    .then(resp => console.log("Comment posted"))
-    .catch(err => console.log(err))
+  // comment(pr["comments_url"], beautifyMessage)
+  //   .then(resp => console.log("Comment posted"))
+  //   .catch(err => console.log(err))
 
   // assign reviewers
   const url = pr["url"]
   if(!pr["requested_reviewers"].length && process.env["REPO"] === pr["base"]["repo"]["name"]) {
-    assignReviewer(url)
-    .then(resp => console.log("Reviewer assigned"))
-    .catch(err => console.log(err))
+    // assignReviewer(url)
+    // .then(resp => console.log("Reviewer assigned"))
+    // .catch(err => console.log(err))
   }  
 
   if(flag) {
-    console.log("drafting release...")
     const { name, description, jira, purpose } = checkBody(pr["body"], false)
     const label = pr["labels"][0]["name"]
-    if(data["action"] === "opened") {
+    if(!checkPRNumberForDraft(pr["number"])) {
+      console.log("drafting release...")
+      savePRNumberForDraft(pr["number"])
       draftRelease(data["repository"]["releases_url"].split("{")[0], { name, description, jira, purpose, label })
       .then(resp => console.log("Drafted a release"))
       .catch(err => console.log(err))
