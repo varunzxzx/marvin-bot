@@ -153,16 +153,16 @@ app.post('/webhook', (req, res) => {
 
   console.log(beautifyMessage)
 
-  // comment(pr["comments_url"], beautifyMessage)
-  //   .then(resp => console.log("Comment posted"))
-  //   .catch(err => console.log(err))
+  comment(pr["comments_url"], beautifyMessage)
+    .then(resp => console.log("Comment posted"))
+    .catch(err => console.log(err))
 
   // assign reviewers
   const url = pr["url"]
   if(!pr["requested_reviewers"].length && process.env["REPO"] === pr["base"]["repo"]["name"]) {
-    // assignReviewer(url)
-    // .then(resp => console.log("Reviewer assigned"))
-    // .catch(err => console.log(err))
+    assignReviewer(url)
+    .then(resp => console.log("Reviewer assigned"))
+    .catch(err => console.log(err))
   }  
 
   if(flag) {
