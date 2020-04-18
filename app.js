@@ -119,7 +119,7 @@ function checkPR(data) {
 
 ////////// API's
 
-app.get('/', (req, res) => res.send('Hello World!'))
+app.get('/', (req, res) => res.send('Hello World!!!!'))
 
 app.get('/fetch-pr/:owner/:repo/:number', (req, res) => {
   const { owner, repo, number } = req.params

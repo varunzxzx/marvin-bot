@@ -42,3 +42,5 @@ jspm_packages
 extra
 dist/*
 Procfile
+
+tracking.json
