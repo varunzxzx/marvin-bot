@@ -3,6 +3,9 @@ const fs = require('fs');
 function getAllLines(stringA, stringB, array) {
   const start = findStringInArray(array, stringA)
   const end = findStringInArray(array, stringB)
+  if(start === -1 || end === -1) {
+    return []
+  }
   let result = ""
   for(let i = start + 1; i < end; i++) {
     result += array[i].trim() + "\n"

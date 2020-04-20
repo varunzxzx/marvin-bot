@@ -22,6 +22,8 @@ const { findStringInArray, getAllLines, savePRNumberForDraft, checkPRNumberForDr
 const EMOJI_WRONG = ":heavy_minus_sign:"
 const EMOJI_RIGHT = ":white_check_mark:"
 
+process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
+
 ///////////// HELPER FUNCTIONS
 
 function checkBody(body, isCheck) {
@@ -195,32 +197,21 @@ app.get('/result', (req, res) => {
 ////////// TESTING ///////////////
 
 app.get('/test-url', (req, res) => {
-  const url = req.query["url"]
-  console.log(url)
  axios({
     method: "get",
-    url: url,
-    auth: {
-      username: "I516376",
-      password: "Cenamv@18"
-    }
+    url: "/",
+    httpsAgent: new https.Agent({  
+      rejectUnauthorized: false
+    })
   })
    .then(response => {
+     console.log(response)
      return res.status(200).send(response["data"])
    })
-   .catch(err => res.status(500).send(err))
-//  return request(url, {
-//     method: 'get',
-//     auth: {
-//       user: 'i516376',
-//       pass: 'Cenamv@18'
-//     },
-//     headers: {
-//       'User-Agent': 'request'
-//     }
-//   })
-//     .then(resp => res.status(200).send(resp))
-//     .catch(err => res.status(200).send(err))
+   .catch(err => {
+     console.log(err)
+     return res.status(500).json(err)
+   })
 })
 
 app.listen(port, () => console.log(`Example app listening at http://localhost:${port}`))
