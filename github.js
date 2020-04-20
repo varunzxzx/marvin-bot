@@ -105,4 +105,19 @@ const assignReviewer = (prUrl) => {
   })
 }
 
-module.exports = { fetchPR, comment, draftRelease, assignReviewer }
+const getAllFiles = (prUrl) => {
+  const url = prUrl + "/files"
+  return request(url, {
+    method: 'get',
+    auth: {
+      user: username,
+      pass: token
+    },
+    headers: {
+      'User-Agent': 'request'
+    },
+    json: true
+  })
+}
+
+module.exports = { fetchPR, comment, draftRelease, assignReviewer, getAllFiles }

@@ -1,10 +1,18 @@
 const fs = require('fs');
+const https = require('https');
+const path = require('path')
+const request = require("request")
+
+function downloadFile(url, name) {
+  var currentDir = path.resolve(process.cwd());
+  request(url).pipe(fs.createWriteStream(currentDir + "/python-files/" + name))
+}
 
 function getAllLines(stringA, stringB, array) {
   const start = findStringInArray(array, stringA)
   const end = findStringInArray(array, stringB)
   if(start === -1 || end === -1) {
-    return []
+    return ""
   }
   let result = ""
   for(let i = start + 1; i < end; i++) {
@@ -111,4 +119,4 @@ function checkPRNumberForDraft(number) {
   return data["prDrafts"].indexOf(number) !== -1
 }
 
-module.exports = { getAllLines, findStringInArray, beautifyDraft, appendPRBody, savePRNumberForDraft, checkPRNumberForDraft }
+module.exports = { getAllLines, findStringInArray, beautifyDraft, appendPRBody, savePRNumberForDraft, checkPRNumberForDraft, downloadFile }

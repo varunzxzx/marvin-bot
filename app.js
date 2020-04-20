@@ -4,6 +4,9 @@ const app = express()
 const fs = require('fs');
 const bodyParser = require('body-parser')
 
+const { exec } = require("child_process");
+var path = require('path')
+
 const SapCfAxios = require('sap-cf-axios/dist').default;
 const destinationName = "my-destination";
 const axios = SapCfAxios(destinationName);
@@ -15,9 +18,9 @@ require('dotenv').config()
 
 const port = process.env.PORT || 3000;
 
-const { fetchPR, comment, draftRelease, assignReviewer } = require('./github')
+const { fetchPR, comment, draftRelease, assignReviewer, getAllFiles } = require('./github')
 
-const { findStringInArray, getAllLines, savePRNumberForDraft, checkPRNumberForDraft } = require("./helper")
+const { findStringInArray, getAllLines, savePRNumberForDraft, checkPRNumberForDraft, downloadFile } = require("./helper")
 
 const EMOJI_WRONG = ":heavy_minus_sign:"
 const EMOJI_RIGHT = ":white_check_mark:"
@@ -119,6 +122,16 @@ function checkPR(data) {
   return {messages, flag}
 }
 
+function lint(file, comments_url) {
+  var currentDir = path.resolve(process.cwd());
+
+  exec("pylint python-files/" + file,  {cwd: currentDir}, (error, stdout, stderr) => {
+    console.log(stdout);
+    comment(comments_url, stdout)
+  });
+
+}
+
 ////////// API's
 
 app.get('/', (req, res) => res.send('Hello World!!!!'))
@@ -147,6 +160,15 @@ app.post('/webhook', (req, res) => {
 
   pr = data["pull_request"]
 
+  getAllFiles(pr["url"])
+    .then(resp => {
+      pyFiles = resp.filter(({ filename }) => filename.includes(".py"))
+      const filename = pyFiles[0]["filename"]
+      downloadFile(pyFiles[0]["raw_url"], filename)
+      lint(filename, pr["comments_url"])
+    })
+
+
   const { messages, flag } = checkPR(pr)
   beautifyMessage = ""
   messages.forEach((message, i) => {
@@ -162,9 +184,9 @@ app.post('/webhook', (req, res) => {
   // assign reviewers
   const url = pr["url"]
   if(!pr["requested_reviewers"].length && process.env["REPO"] === pr["base"]["repo"]["name"]) {
-    assignReviewer(url)
-    .then(resp => console.log("Reviewer assigned"))
-    .catch(err => console.log(err))
+    // assignReviewer(url)
+    // .then(resp => console.log("Reviewer assigned"))
+    // .catch(err => console.log(err))
   }  
 
   if(flag) {
