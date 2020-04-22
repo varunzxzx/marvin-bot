@@ -1,11 +1,11 @@
 const fs = require('fs');
-const https = require('https');
 const path = require('path')
 const request = require("request")
 
-function downloadFile(url, name) {
-  var currentDir = path.resolve(process.cwd());
-  request(url).pipe(fs.createWriteStream(currentDir + "/python-files/" + name))
+async function downloadFile(url, name) {
+  console.log("Downloading File: " + name)
+  const currentDir = path.resolve(process.cwd());
+  return request(url).pipe(fs.createWriteStream(currentDir + "/python-files/" + name))
 }
 
 function getAllLines(stringA, stringB, array) {
@@ -95,14 +95,14 @@ function beautifyDraft(data) {
   return beautifyBody
 }
 
-function savePRNumberForDraft(number) {
+function savePRNumber(number, prData) {
   fs.readFile("tracking.json", (err, data) => {
     if(err) {
       console.log(err)
       return
     }
     data = JSON.parse(data)
-    data["prDrafts"].push(number)
+    data[number] = prData
     
     fs.writeFile("tracking.json", JSON.stringify(data), (err) => {
       if(err) {
@@ -114,9 +114,9 @@ function savePRNumberForDraft(number) {
   })
 }
 
-function checkPRNumberForDraft(number) {
+function getPRNumber(number) {
   const data = JSON.parse(fs.readFileSync("tracking.json"))
-  return data["prDrafts"].indexOf(number) !== -1
+  return (number in data) ? data[number] : undefined;
 }
 
-module.exports = { getAllLines, findStringInArray, beautifyDraft, appendPRBody, savePRNumberForDraft, checkPRNumberForDraft, downloadFile }
+module.exports = { getAllLines, findStringInArray, beautifyDraft, appendPRBody, savePRNumber, getPRNumber, downloadFile }

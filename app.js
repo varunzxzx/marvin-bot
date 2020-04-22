@@ -7,9 +7,8 @@ const bodyParser = require('body-parser')
 const { exec } = require("child_process");
 var path = require('path')
 
-const SapCfAxios = require('sap-cf-axios/dist').default;
-const destinationName = "my-destination";
-const axios = SapCfAxios(destinationName);
+var currentDir = path.resolve(process.cwd(), "python-files");
+
 
 app.use(bodyParser.urlencoded({extended: false}));
 app.use(bodyParser.json());
@@ -20,7 +19,7 @@ const port = process.env.PORT || 3000;
 
 const { fetchPR, comment, draftRelease, assignReviewer, getAllFiles } = require('./github')
 
-const { findStringInArray, getAllLines, savePRNumberForDraft, checkPRNumberForDraft, downloadFile } = require("./helper")
+const { findStringInArray, getAllLines, savePRNumber, getPRNumber, downloadFile } = require("./helper")
 
 const EMOJI_WRONG = ":heavy_minus_sign:"
 const EMOJI_RIGHT = ":white_check_mark:"
@@ -89,7 +88,7 @@ function checkBody(body, isCheck) {
   return message
 }
 
-function checkPR(data) {
+function checkPR(data, prState) {
   let messages = [], flag = true
   const { body, labels } = data
   if(labels.length == 0) {
@@ -98,36 +97,65 @@ function checkPR(data) {
   }
   else {
     label = labels[0]["name"].toLowerCase()
-    if(label.includes("release")) {
+    if(label.includes("release") && !prState["isBodyCheck"]) {
       const checkBodyMessage = checkBody(body, true)
       if(checkBodyMessage.length) {
         messages = messages.concat(checkBodyMessage)
         flag = false
       } else {
-        messages.push(EMOJI_RIGHT + "Template filled with your component's details")
+        if(!prState["isBodyCheck"])
+          messages.push(EMOJI_RIGHT + "Template filled with your component's details")
       }
-    } else {
-      flag = false
     }
-    messages.push(EMOJI_RIGHT + "Labels are present. Make sure if it is release relevant put a label with release name")
+    if(!prState["isLabelCheck"])
+      messages.push(EMOJI_RIGHT + "Labels are present. Make sure if it is release relevant put a label with release name")
   }
 
   //check reviewers
   if(data["requested_reviewers"].length === 0) {
     messages.push(EMOJI_RIGHT + "No reviewers assigned , assigning I343977 as default reviewer , feel free to add more reviewer")
     // flag = false
-  } else {
-    messages.push(EMOJI_RIGHT + "Reviewer assigned.")
   }
   return {messages, flag}
 }
 
-function lint(file, comments_url) {
-  var currentDir = path.resolve(process.cwd());
+function checkIncludes(str, files) {
+  for(let i = 0; i < files.length; i++) {
+    if(str.includes(files[i])) return true
+  }
+  return false
+}
 
-  exec("pylint python-files/" + file,  {cwd: currentDir}, (error, stdout, stderr) => {
-    console.log(stdout);
-    comment(comments_url, stdout)
+function lint(files, comments_url) {
+  // spellCheck(files)
+  exec("pylint " + files.join(" "),  {cwd: currentDir}, (error, stdout, stderr) => {
+    stdout = stdout.replace(/[\r\n]+/g, '\n')
+    const lines = stdout.split(/\r?\n/);
+    if(!error && !stdout) {
+      console.log("calling again...")
+      return lint(files, comments_url)
+    }
+    const body = `I've detected ${files.length === 1 ? "one" : "some"} python file${files.length === 1 ? "" : "s"}. Here is the pylint result for it.`
+    
+    let result = ""
+
+    lines.forEach((line, i) => {
+      if(line.includes("*****")) {
+        result += "\n> :pushpin: " + line.replace(/\*/g, "")
+      } else if(checkIncludes(line, files)) {
+        result += "\n<pre>" + line + "\n"
+        let j = i + 1;
+        if(lines[j] && !lines[j].includes("---------")) {
+          while(!checkIncludes(lines[j], files)) {
+            result += lines[j] + "\n"
+            j++;
+          }
+        }
+        result += "</pre>"
+      }
+    })
+
+    comment(comments_url, body + "\n" + result)
   });
 
 }
@@ -160,16 +188,49 @@ app.post('/webhook', (req, res) => {
 
   pr = data["pull_request"]
 
+  let prState = {
+    "isLabelCheck": false,
+    "isBodyCheck": false,
+    "isDraftCreated": false
+  }
+
+  /////////////// TRACK PR //////////////////
+  if(getPRNumber(pr["number"])) {
+    console.log("got object")
+    prState = getPRNumber(pr["number"])
+  } else {
+    savePRNumber(pr["number"], prState)
+  }
+
+
+
   getAllFiles(pr["url"])
     .then(resp => {
       pyFiles = resp.filter(({ filename }) => filename.includes(".py"))
-      const filename = pyFiles[0]["filename"]
-      downloadFile(pyFiles[0]["raw_url"], filename)
-      lint(filename, pr["comments_url"])
+      if(pyFiles.length === 0) return;
+      const filesName = pyFiles.map(file => file["filename"])
+
+      const promises = []
+      pyFiles.forEach(pyFile => {
+        const filename = pyFile["filename"]
+        promises.push(downloadFile(pyFile["raw_url"], filename))
+      })
+
+      if(!promises.length) {
+        Promise.all(promises)
+        .then(() => {
+          console.log("Linting...")
+          lint(filesName, pr["comments_url"])    
+        })
+        .catch(err => {
+          console.log("Error downloading file: " + err)
+        })
+      }
+
     })
 
 
-  const { messages, flag } = checkPR(pr)
+  const { messages, flag } = checkPR(pr, prState)
   beautifyMessage = ""
   messages.forEach((message, i) => {
     beautifyMessage += " - " + message + "\n"
@@ -177,28 +238,36 @@ app.post('/webhook', (req, res) => {
 
   console.log(beautifyMessage)
 
-  comment(pr["comments_url"], beautifyMessage)
+  if(!prState["isBodyCheck"] || !prState["isLabelCheck"]) {
+    comment(pr["comments_url"], beautifyMessage)
     .then(resp => console.log("Comment posted"))
     .catch(err => console.log(err))
-
+  }
   // assign reviewers
   const url = pr["url"]
   if(!pr["requested_reviewers"].length && process.env["REPO"] === pr["base"]["repo"]["name"]) {
-    // assignReviewer(url)
-    // .then(resp => console.log("Reviewer assigned"))
-    // .catch(err => console.log(err))
-  }  
+    assignReviewer(url)
+    .then(resp => console.log("Reviewer assigned"))
+    .catch(err => console.log(err))
+  }
 
   if(flag) {
     const { name, description, jira, purpose } = checkBody(pr["body"], false)
     const label = pr["labels"][0]["name"]
-    if(!checkPRNumberForDraft(pr["number"])) {
+    if(!prState["isDraftCreated"] && label.toLowerCase().includes("release")) {
       console.log("drafting release...")
-      savePRNumberForDraft(pr["number"])
       draftRelease(data["repository"]["releases_url"].split("{")[0], { name, description, jira, purpose, label })
       .then(resp => console.log("Drafted a release"))
       .catch(err => console.log(err))
+      prState["isDraftCreated"] = true
+
     }
+    prState["isLabelCheck"] = true
+    if(label.toLowerCase().includes("release")) {
+      prState["isBodyCheck"] = true
+    }
+    console.log("here")
+    savePRNumber(pr["number"], prState)
   }
 
   fs.writeFile('result.json', JSON.stringify({"pull_number": data["number"], beautifyMessage}), function (err) {
@@ -217,14 +286,14 @@ app.get('/result', (req, res) => {
 
 
 ////////// TESTING ///////////////
+const SapCfAxios = require('sap-cf-axios/dist').default;
+const destinationName = "my-destination";
+const axios = SapCfAxios(destinationName);
 
 app.get('/test-url', (req, res) => {
  axios({
     method: "get",
     url: "/",
-    httpsAgent: new https.Agent({  
-      rejectUnauthorized: false
-    })
   })
    .then(response => {
      console.log(response)

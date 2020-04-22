@@ -8,7 +8,7 @@ urllib3.disable_warnings()
 class VaultAccessor:
     """Methods for accessing Vault"""
 
-     def __init__(self, secrets_path, address, token):
+    def __init__(self, secrets_path, address, token):
         self.client = hvac.Client(url=address, token=token, verify=False)
         self.path = secrets_path
 
@@ -28,7 +28,7 @@ class VaultAccessError(Exception):
 
 def main():
     """Main method"""
-    parser = ArgumentParser()
+    parser  = ArgumentParser()
     parser.add_argument("secrets_path", help="The path to the secrets")
     parser.add_argument("vault_address", help="The address of the vault")
     parser.add_argument("token", help="A vault access token")
