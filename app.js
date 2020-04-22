@@ -109,6 +109,7 @@ function checkPR(data, prState) {
     }
     if(!prState["isLabelCheck"])
       messages.push(EMOJI_RIGHT + "Labels are present. Make sure if it is release relevant put a label with release name")
+      prState["isLabelCheck"] = true
   }
 
   //check reviewers
@@ -262,7 +263,6 @@ app.post('/webhook', (req, res) => {
       prState["isDraftCreated"] = true
 
     }
-    prState["isLabelCheck"] = true
     if(label.toLowerCase().includes("release")) {
       prState["isBodyCheck"] = true
     }
