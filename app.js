@@ -129,6 +129,7 @@ function checkIncludes(str, files) {
 
 function lint(files, comments_url) {
   // spellCheck(files)
+  console.log(files)
   exec("pylint " + files.join(" "),  {cwd: currentDir}, (error, stdout, stderr) => {
     stdout = stdout.replace(/[\r\n]+/g, '\n')
     const lines = stdout.split(/\r?\n/);
@@ -136,6 +137,7 @@ function lint(files, comments_url) {
       console.log("calling again...")
       return lint(files, comments_url)
     }
+    console.log(stdout)
     const body = `I've detected ${files.length === 1 ? "one" : "some"} python file${files.length === 1 ? "" : "s"}. Here is the pylint result for it.`
     
     let result = ""
@@ -147,7 +149,7 @@ function lint(files, comments_url) {
         result += "\n<pre>" + line + "\n"
         let j = i + 1;
         if(lines[j] && !lines[j].includes("---------")) {
-          while(!checkIncludes(lines[j], files)) {
+          while(!checkIncludes(lines[j], files) && !lines[j].includes("*****")) {
             result += lines[j] + "\n"
             j++;
           }
@@ -209,15 +211,19 @@ app.post('/webhook', (req, res) => {
     .then(resp => {
       pyFiles = resp.filter(({ filename }) => filename.includes(".py"))
       if(pyFiles.length === 0) return;
-      const filesName = pyFiles.map(file => file["filename"])
+      const filesName = pyFiles.map(file => {
+        const arr = file["filename"].split("/")
+        return arr[arr.length - 1]
+      })
 
       const promises = []
       pyFiles.forEach(pyFile => {
-        const filename = pyFile["filename"]
+        const arr = pyFile["filename"].split("/")
+        const filename = arr[arr.length - 1]
         promises.push(downloadFile(pyFile["raw_url"], filename))
       })
 
-      if(!promises.length) {
+      if(promises.length) {
         Promise.all(promises)
         .then(() => {
           console.log("Linting...")
