@@ -112,11 +112,6 @@ function checkPR(data, prState) {
       prState["isLabelCheck"] = true
   }
 
-  //check reviewers
-  if(data["requested_reviewers"].length === 0) {
-    messages.push(EMOJI_RIGHT + "No reviewers assigned , assigning I343977 as default reviewer , feel free to add more reviewer")
-    // flag = false
-  }
   return {messages, flag}
 }
 
@@ -239,6 +234,16 @@ app.post('/webhook', (req, res) => {
   }
 
   const { messages, flag } = checkPR(pr, prState)
+
+  // assign reviewers
+  const url = pr["url"]
+  if(!pr["requested_reviewers"].length && process.env["REPO"] === pr["base"]["repo"]["name"]) {
+    messages.push(EMOJI_RIGHT + "No reviewers assigned , assigning I343977 as default reviewer , feel free to add more reviewer")
+    assignReviewer(url)
+    .then(resp => console.log("Reviewer assigned"))
+    .catch(err => console.log(err))
+  }
+  
   beautifyMessage = ""
   messages.forEach((message, i) => {
     beautifyMessage += " - " + message + "\n"
@@ -249,13 +254,6 @@ app.post('/webhook', (req, res) => {
   if(!prState["isBodyCheck"] || !prState["isLabelCheck"]) {
     comment(pr["comments_url"], beautifyMessage)
     .then(resp => console.log("Comment posted"))
-    .catch(err => console.log(err))
-  }
-  // assign reviewers
-  const url = pr["url"]
-  if(!pr["requested_reviewers"].length && process.env["REPO"] === pr["base"]["repo"]["name"]) {
-    assignReviewer(url)
-    .then(resp => console.log("Reviewer assigned"))
     .catch(err => console.log(err))
   }
 
