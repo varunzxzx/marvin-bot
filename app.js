@@ -235,11 +235,15 @@ app.post('/webhook', (req, res) => {
 
   const { messages, flag } = checkPR(pr, prState)
 
+  const REPO = JSON.parse(process.env["REPO"])
+  const REVIEWERS = JSON.parse(process.env["REVIEWERS"])
+
   // assign reviewers
   const url = pr["url"]
-  if(!pr["requested_reviewers"].length && process.env["REPO"] === pr["base"]["repo"]["name"]) {
+  if(!pr["requested_reviewers"].length && checkIncludes(pr["base"]["repo"]["name"], REPO)) {
+    const reviewers = REVIEWERS[REPO.indexOf(pr["base"]["repo"]["name"])]
     messages.push(EMOJI_RIGHT + "No reviewers assigned , assigning I343977 as default reviewer , feel free to add more reviewer")
-    assignReviewer(url)
+    assignReviewer(url, reviewers)
     .then(resp => console.log("Reviewer assigned"))
     .catch(err => console.log(err))
   }

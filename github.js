@@ -86,10 +86,10 @@ const draftRelease = (url, data) => {
 
 }
 
-const assignReviewer = (prUrl) => {
+const assignReviewer = (prUrl, reviewers) => {
   const url = prUrl + "/requested_reviewers"
   const data = {
-    "reviewers": JSON.parse(process.env["REVIEWERS"])
+    "reviewers": Array.isArray(reviewers) ? reviewers : [reviewers]
   }
   return request(url, {
     method: 'post',
