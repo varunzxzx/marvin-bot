@@ -120,9 +120,9 @@ function checkPR(data, prState) {
   return {messages, flag}
 }
 
-function checkIncludes(str, files) {
-  for(let i = 0; i < files.length; i++) {
-    if(str.includes(files[i])) return true
+function checkIncludes(str, array) {
+  for(let i = 0; i < array.length; i++) {
+    if(str.includes(array[i])) return true
   }
   return false
 }
@@ -205,9 +205,10 @@ app.post('/webhook', (req, res) => {
     savePRNumber(pr["number"], prState)
   }
 
+  const LINT_REPO = JSON.parse(process.env.LINT_REPO)
 
-
-  getAllFiles(pr["url"])
+  if(checkIncludes(pr["base"]["repo"]["name"], LINT_REPO)) {
+    getAllFiles(pr["url"])
     .then(resp => {
       pyFiles = resp.filter(({ filename }) => filename.includes(".py"))
       if(pyFiles.length === 0) return;
@@ -235,7 +236,7 @@ app.post('/webhook', (req, res) => {
       }
 
     })
-
+  }
 
   const { messages, flag } = checkPR(pr, prState)
   beautifyMessage = ""
@@ -297,9 +298,13 @@ const destinationName = "my-destination";
 const axios = SapCfAxios(destinationName);
 
 app.get('/test-url', (req, res) => {
+  var Authorization = req.headers.authorization;
  axios({
     method: "get",
     url: "/",
+    headers: {
+      Authorization
+    }
   })
    .then(response => {
      console.log(response)
