@@ -55,7 +55,7 @@ const draftRelease = (url, data) => {
 
       drafts.forEach(function(draft) {
         console.log(draft["name"], data["label"])
-        if(draft["name"] === data["label"] && draft["draft"]) {
+        if(draft["name"] === data["label"].toLowerCase() && draft["draft"]) {
           draftUrl = draft["url"]
           console.log("Found old draft: ", draft["url"])
 
