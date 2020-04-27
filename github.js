@@ -54,8 +54,10 @@ const draftRelease = (url, data) => {
       let draftUrl = url
 
       drafts.forEach(function(draft) {
+        console.log(draft["name"], data["label"])
         if(draft["name"] === data["label"] && draft["draft"]) {
           draftUrl = draft["url"]
+          console.log("Found old draft: ", draft["url"])
 
           // append body with old content
           data = appendPRBody(data, draft["body"])
