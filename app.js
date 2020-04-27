@@ -193,11 +193,11 @@ app.post('/webhook', (req, res) => {
   }
 
   /////////////// TRACK PR //////////////////
-  if(getPRNumber(pr["number"])) {
+  if(getPRNumber(pr["number"], pr["base"]["repo"]["full_name"])) {
     console.log("got object")
-    prState = getPRNumber(pr["number"])
+    prState = getPRNumber(pr["number"], pr["base"]["repo"]["full_name"])
   } else {
-    savePRNumber(pr["number"], prState)
+    savePRNumber(pr["number"], pr["base"]["repo"]["full_name"], prState)
   }
 
   const LINT_REPO = JSON.parse(process.env.LINT_REPO)
@@ -276,7 +276,7 @@ app.post('/webhook', (req, res) => {
       prState["isBodyCheck"] = true
     }
     console.log("here")
-    savePRNumber(pr["number"], prState)
+    savePRNumber(pr["number"], pr["base"]["repo"]["full_name"], prState)
   }
 
   fs.writeFile('result.json', JSON.stringify({"pull_number": data["number"], beautifyMessage}), function (err) {

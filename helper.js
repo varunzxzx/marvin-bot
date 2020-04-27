@@ -95,15 +95,22 @@ function beautifyDraft(data) {
   return beautifyBody
 }
 
-function savePRNumber(number, prData) {
+function savePRNumber(number, repoName, prData) {
   fs.readFile("tracking.json", (err, data) => {
     if(err) {
       console.log(err)
       return
     }
     data = JSON.parse(data)
-    data[number] = prData
-    
+    console.log("save", repoName)
+
+    if(repoName in data) {
+      data[repoName][number] = prData
+    } else {
+      data[repoName] = {}
+      data[repoName][number] = prData
+    }
+
     fs.writeFile("tracking.json", JSON.stringify(data), (err) => {
       if(err) {
         console.log(err)
@@ -114,9 +121,12 @@ function savePRNumber(number, prData) {
   })
 }
 
-function getPRNumber(number) {
+function getPRNumber(number, repoName) {
   const data = JSON.parse(fs.readFileSync("tracking.json"))
-  return (number in data) ? data[number] : undefined;
+  console.log("get", repoName)
+  if(repoName in data) {
+    return (number in data[repoName]) ? data[repoName][number] : undefined;
+  }
 }
 
 module.exports = { getAllLines, findStringInArray, beautifyDraft, appendPRBody, savePRNumber, getPRNumber, downloadFile }
