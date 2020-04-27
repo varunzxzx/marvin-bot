@@ -245,7 +245,7 @@ app.post('/webhook', (req, res) => {
     messages.push(EMOJI_RIGHT + "No reviewers assigned , assigning I343977 as default reviewer , feel free to add more reviewer")
     assignReviewer(url, reviewers)
     .then(resp => console.log("Reviewer assigned"))
-    .catch(err => console.log(err))
+    .catch(err => console.log("err assigning reviewer"))
   }
   
   beautifyMessage = ""
