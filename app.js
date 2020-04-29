@@ -10,7 +10,7 @@ var path = require('path')
 var currentDir = path.resolve(process.cwd(), "python-files");
 
 
-app.use(bodyParser.urlencoded({extended: false}));
+app.use(bodyParser.urlencoded({ extended: false }));
 app.use(bodyParser.json());
 
 require('dotenv').config()
@@ -34,30 +34,30 @@ function checkBody(body, isCheck) {
   const message = [], data = {}
   // check Component name
   let index = findStringInArray(lines, "ML-Component name for PR")
-  if(lines[index + 1].includes("Detailed Description of change this PR contains") || lines[index + 1].includes("Example")) {
+  if (lines[index + 1].includes("Detailed Description of change this PR contains") || lines[index + 1].includes("Example")) {
     message.push(EMOJI_WRONG + "You did not change the example component name with your component name , please fill your component name correctly")
   } else {
-    if(!isCheck) {
+    if (!isCheck) {
       data["name"] = getAllLines("ML-Component name for PR", "Detailed Description of change this PR contains", lines)
     }
   }
 
   //check Description
   index = findStringInArray(lines, "Detailed Description of change this PR contains")
-  if(lines[index + 1].includes("Provide links or keys to any relevant tickets") || lines[index + 1].includes("Example")) {
+  if (lines[index + 1].includes("Provide links or keys to any relevant tickets") || lines[index + 1].includes("Example")) {
     message.push(EMOJI_WRONG + "You did not change the example description with your component name , please fill your  description as per this PR changes")
   } else {
-    if(!isCheck) {
+    if (!isCheck) {
       data["description"] = getAllLines("Detailed Description of change this PR contains", "Provide links or keys to any relevant tickets", lines)
     }
   }
 
   //check JIRA link
   index = findStringInArray(lines, "Provide links or keys to any relevant tickets")
-  if(lines[index + 1].includes("PR is raised for what purpose to solve") || lines[index + 1].includes("Example")) {
+  if (lines[index + 1].includes("PR is raised for what purpose to solve") || lines[index + 1].includes("Example")) {
     message.push(EMOJI_WRONG + "You did not add the JIRA link , please fill the JIRA link correctly")
   } else {
-    if(!isCheck) {
+    if (!isCheck) {
       data["jira"] = getAllLines("Provide links or keys to any relevant tickets", "PR is raised for what purpose to solve", lines)
     }
   }
@@ -67,21 +67,21 @@ function checkBody(body, isCheck) {
   last = findStringInArray(lines, "Passed CI and Integration Test Result link")
   const purpose = []
   const EMOJIS = [":zap:", ":construction:", ":tada:", ":penguin:", ":rotating_light:", ":pushpin:", ":alien:", ":truck:"]
-  for(let i = index, j = 0; i < last; i++, j++) {
-    if(lines[i].toLowerCase().includes("[x]")) {
+  for (let i = index, j = 0; i < last; i++, j++) {
+    if (lines[i].toLowerCase().includes("[x]")) {
       purpose.push(EMOJIS[j] + lines[i].split("]")[1])
     }
   }
 
-  if(!purpose.length) {
+  if (!purpose.length) {
     message.push(EMOJI_WRONG + "You did not add the Purpose for the PR , please fill the purpose of the PR")
   } else {
-    if(!isCheck) {
+    if (!isCheck) {
       data["purpose"] = purpose
     }
   }
 
-  if(!isCheck) {
+  if (!isCheck) {
     return data
   }
 
@@ -89,35 +89,37 @@ function checkBody(body, isCheck) {
 }
 
 function checkPR(data, prState) {
+  const DRAFT_REPO = JSON.parse(process.env.DRAFT_REPO)
+
   let messages = [], flag = true
   const { body, labels } = data
-  if(labels.length == 0) {
+  if (labels.length == 0) {
     messages.push(EMOJI_WRONG + "No labels are present. Make sure if it is release relevant put a label with release name")
     flag = false
   }
   else {
     label = labels[0]["name"].toLowerCase()
-    if(label.includes("release") && !prState["isBodyCheck"]) {
+    if (checkIncludes(data["base"]["repo"]["name"], DRAFT_REPO) && label.includes("release") && !prState["isBodyCheck"]) {
       const checkBodyMessage = checkBody(body, true)
-      if(checkBodyMessage.length) {
+      if (checkBodyMessage.length) {
         messages = messages.concat(checkBodyMessage)
         flag = false
       } else {
-        if(!prState["isBodyCheck"])
+        if (!prState["isBodyCheck"])
           messages.push(EMOJI_RIGHT + "Template filled with your component's details")
       }
     }
-    if(!prState["isLabelCheck"])
+    if (!prState["isLabelCheck"])
       messages.push(EMOJI_RIGHT + "Labels are present. Make sure if it is release relevant put a label with release name")
-      prState["isLabelCheck"] = true
+    prState["isLabelCheck"] = true
   }
 
-  return {messages, flag}
+  return { messages, flag }
 }
 
 function checkIncludes(str, array) {
-  for(let i = 0; i < array.length; i++) {
-    if(str.includes(array[i])) return true
+  for (let i = 0; i < array.length; i++) {
+    if (str.includes(array[i])) return true
   }
   return false
 }
@@ -125,26 +127,26 @@ function checkIncludes(str, array) {
 function lint(files, comments_url) {
   // spellCheck(files)
   console.log(files)
-  exec("pylint " + files.join(" "),  {cwd: currentDir}, (error, stdout, stderr) => {
+  exec("pylint " + files.join(" "), { cwd: currentDir }, (error, stdout, stderr) => {
     stdout = stdout.replace(/[\r\n]+/g, '\n')
     const lines = stdout.split(/\r?\n/);
-    if(!error && !stdout) {
+    if (!error && !stdout) {
       console.log("calling again...")
       return lint(files, comments_url)
     }
     console.log(stdout)
     const body = `I've detected ${files.length === 1 ? "one" : "some"} python file${files.length === 1 ? "" : "s"}. Here is the pylint result for it.`
-    
+
     let result = ""
 
     lines.forEach((line, i) => {
-      if(line.includes("*****")) {
+      if (line.includes("*****")) {
         result += "\n> :pushpin: " + line.replace(/\*/g, "")
-      } else if(checkIncludes(line, files)) {
+      } else if (checkIncludes(line, files)) {
         result += "\n<pre>" + line + "\n"
         let j = i + 1;
-        if(lines[j] && !lines[j].includes("---------")) {
-          while(!checkIncludes(lines[j], files) && !lines[j].includes("*****")) {
+        if (lines[j] && !lines[j].includes("---------")) {
+          while (!checkIncludes(lines[j], files) && !lines[j].includes("*****")) {
             result += lines[j] + "\n"
             j++;
           }
@@ -159,16 +161,13 @@ function lint(files, comments_url) {
 }
 
 ////////// API's
-
-app.get('/', (req, res) => res.send('Hello World!!!!'))
-
 app.get('/fetch-pr/:owner/:repo/:number', (req, res) => {
   const { owner, repo, number } = req.params
   fetchPR(owner, repo, number)
     .then(resp => {
       data = JSON.parse(resp)
       let message = checkPR(data)
-      return res.status(200).json({"success": true, message})
+      return res.status(200).json({ "success": true, message })
     })
     .catch(err => res.status(500).send(err))
 })
@@ -180,7 +179,7 @@ app.post('/webhook', (req, res) => {
     if (err) throw err;
   });
   const action = data["action"]
-  if(action === "review_requested" || action === "review_request_removed" || action === "assigned" || action === "unassigned" || action === "closed") {
+  if (action === "review_requested" || action === "review_request_removed" || action === "assigned" || action === "unassigned" || action === "closed") {
     return res.status(200).send("got it, Github")
   }
 
@@ -193,7 +192,7 @@ app.post('/webhook', (req, res) => {
   }
 
   /////////////// TRACK PR //////////////////
-  if(getPRNumber(pr["number"], pr["base"]["repo"]["full_name"])) {
+  if (getPRNumber(pr["number"], pr["base"]["repo"]["full_name"])) {
     console.log("got object")
     prState = getPRNumber(pr["number"], pr["base"]["repo"]["full_name"])
   } else {
@@ -201,36 +200,37 @@ app.post('/webhook', (req, res) => {
   }
 
   const LINT_REPO = JSON.parse(process.env.LINT_REPO)
+  const DRAFT_REPO = JSON.parse(process.env.DRAFT_REPO)
 
-  if(checkIncludes(pr["base"]["repo"]["name"], LINT_REPO)) {
+  if (checkIncludes(pr["base"]["repo"]["name"], LINT_REPO)) {
     getAllFiles(pr["url"])
-    .then(resp => {
-      pyFiles = resp.filter(({ filename }) => filename.includes(".py"))
-      if(pyFiles.length === 0) return;
-      const filesName = pyFiles.map(file => {
-        const arr = file["filename"].split("/")
-        return arr[arr.length - 1]
-      })
-
-      const promises = []
-      pyFiles.forEach(pyFile => {
-        const arr = pyFile["filename"].split("/")
-        const filename = arr[arr.length - 1]
-        promises.push(downloadFile(pyFile["raw_url"], filename))
-      })
-
-      if(promises.length) {
-        Promise.all(promises)
-        .then(() => {
-          console.log("Linting...")
-          lint(filesName, pr["comments_url"])    
+      .then(resp => {
+        pyFiles = resp.filter(({ filename }) => filename.includes(".py"))
+        if (pyFiles.length === 0) return;
+        const filesName = pyFiles.map(file => {
+          const arr = file["filename"].split("/")
+          return arr[arr.length - 1]
         })
-        .catch(err => {
-          console.log("Error downloading file: " + err)
-        })
-      }
 
-    })
+        const promises = []
+        pyFiles.forEach(pyFile => {
+          const arr = pyFile["filename"].split("/")
+          const filename = arr[arr.length - 1]
+          promises.push(downloadFile(pyFile["raw_url"], filename))
+        })
+
+        if (promises.length) {
+          Promise.all(promises)
+            .then(() => {
+              console.log("Linting...")
+              lint(filesName, pr["comments_url"])
+            })
+            .catch(err => {
+              console.log("Error downloading file: " + err)
+            })
+        }
+
+      })
   }
 
   const { messages, flag } = checkPR(pr, prState)
@@ -240,14 +240,14 @@ app.post('/webhook', (req, res) => {
 
   // assign reviewers
   const url = pr["url"]
-  if(!pr["requested_reviewers"].length && checkIncludes(pr["base"]["repo"]["name"], REPO)) {
+  if (!pr["requested_reviewers"].length && checkIncludes(pr["base"]["repo"]["name"], REPO)) {
     const reviewers = REVIEWERS[REPO.indexOf(pr["base"]["repo"]["name"])]
     messages.push(EMOJI_RIGHT + "No reviewers assigned , assigning I343977 as default reviewer , feel free to add more reviewer")
     assignReviewer(url, reviewers)
-    .then(resp => console.log("Reviewer assigned"))
-    .catch(err => console.log("err assigning reviewer"))
+      .then(resp => console.log("Reviewer assigned"))
+      .catch(err => console.log("err assigning reviewer"))
   }
-  
+
   beautifyMessage = ""
   messages.forEach((message, i) => {
     beautifyMessage += " - " + message + "\n"
@@ -255,31 +255,31 @@ app.post('/webhook', (req, res) => {
 
   console.log(beautifyMessage)
 
-  if(!prState["isBodyCheck"] || !prState["isLabelCheck"]) {
+  if (!prState["isBodyCheck"] || !prState["isLabelCheck"]) {
     comment(pr["comments_url"], beautifyMessage)
-    .then(resp => console.log("Comment posted"))
-    .catch(err => console.log(err))
+      .then(resp => console.log("Comment posted"))
+      .catch(err => console.log(err))
   }
 
-  if(flag) {
+  if (flag && checkIncludes(pr["base"]["repo"]["name"], DRAFT_REPO)) {
     const { name, description, jira, purpose } = checkBody(pr["body"], false)
     const label = pr["labels"][0]["name"]
-    if(!prState["isDraftCreated"] && label.toLowerCase().includes("release")) {
+    if (!prState["isDraftCreated"] && label.toLowerCase().includes("release")) {
       console.log("drafting release...")
       draftRelease(data["repository"]["releases_url"].split("{")[0], { name, description, jira, purpose, label })
-      .then(resp => console.log("Drafted a release"))
-      .catch(err => console.log(err))
+        .then(resp => console.log("Drafted a release"))
+        .catch(err => console.log(err))
       prState["isDraftCreated"] = true
 
     }
-    if(label.toLowerCase().includes("release")) {
+    if (label.toLowerCase().includes("release")) {
       prState["isBodyCheck"] = true
     }
     console.log("here")
     savePRNumber(pr["number"], pr["base"]["repo"]["full_name"], prState)
   }
 
-  fs.writeFile('result.json', JSON.stringify({"pull_number": data["number"], beautifyMessage}), function (err) {
+  fs.writeFile('result.json', JSON.stringify({ "pull_number": data["number"], beautifyMessage }), function (err) {
     if (err) throw err;
     console.log('Result saved');
   })
@@ -287,7 +287,7 @@ app.post('/webhook', (req, res) => {
 })
 
 app.get('/result', (req, res) => {
-  fs.readFile('result.json', function(err, data) {
+  fs.readFile('result.json', function (err, data) {
     data = JSON.parse(data)
     return res.status(200).json(data)
   });
@@ -296,26 +296,35 @@ app.get('/result', (req, res) => {
 
 ////////// TESTING ///////////////
 const SapCfAxios = require('sap-cf-axios/dist').default;
-const destinationName = "my-destination";
-const axios = SapCfAxios(destinationName);
 
-app.get('/test-url', (req, res) => {
+app.get('*', (req, res) => {
+
+  const axios = SapCfAxios(req.query.svc || 'wiki');
+
+  console.log(req.path)
   var Authorization = req.headers.authorization;
- axios({
+  axios({
     method: "get",
-    url: "/",
+    url: req.path || '/',
     headers: {
       Authorization
     }
   })
-   .then(response => {
-     console.log(response)
-     return res.status(200).send(response["data"])
-   })
-   .catch(err => {
-     console.log(err)
-     return res.status(500).json(err)
-   })
+    .then(response => {
+      //  console.log(response)
+      if (req.path.includes(".css")) {
+        console.log("got css")
+        res.setHeader('Content-Type', 'text/css')
+      }
+      if (typeof response["data"] === "string") {
+        return res.status(200).send(response["data"].replace(/https:\/\/github.wdf.sap.corp/g, ""))
+      }
+      return res.status(200).send(response["data"])
+    })
+    .catch(err => {
+      console.log(err)
+      return res.status(500).json(err)
+    })
 })
 
 app.listen(port, () => console.log(`Example app listening at http://localhost:${port}`))
