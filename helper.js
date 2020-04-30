@@ -129,4 +129,10 @@ function getPRNumber(number, repoName) {
   }
 }
 
-module.exports = { getAllLines, findStringInArray, beautifyDraft, appendPRBody, savePRNumber, getPRNumber, downloadFile }
+function initialiseApp() {
+  if(!fs.existsSync("tracking.json")) {
+    fs.writeFileSync("tracking.json", "{}")
+  }
+}
+
+module.exports = { getAllLines, findStringInArray, beautifyDraft, appendPRBody, savePRNumber, getPRNumber, downloadFile, initialiseApp }

@@ -3,11 +3,12 @@ const express = require('express')
 const app = express()
 const fs = require('fs');
 const bodyParser = require('body-parser')
+const schedule = require('node-schedule');
 
 const { exec } = require("child_process");
-var path = require('path')
+const path = require('path')
 
-var currentDir = path.resolve(process.cwd(), "python-files");
+const currentDir = path.resolve(process.cwd(), "python-files");
 
 
 app.use(bodyParser.urlencoded({ extended: false }));
@@ -19,12 +20,25 @@ const port = process.env.PORT || 3000;
 
 const { fetchPR, comment, draftRelease, assignReviewer, getAllFiles } = require('./github')
 
-const { findStringInArray, getAllLines, savePRNumber, getPRNumber, downloadFile } = require("./helper")
+const { findStringInArray, getAllLines, savePRNumber, getPRNumber, downloadFile, initialiseApp } = require("./helper")
 
 const EMOJI_WRONG = ":heavy_minus_sign:"
 const EMOJI_RIGHT = ":white_check_mark:"
 
 process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
+
+initialiseApp()
+
+///////////// SCHEDULED JOBS
+
+const rule = new schedule.RecurrenceRule();
+rule.hour = 12;
+
+const PYLINT_CONFIG = process.env.PYLINT_CONFIG || "https://github.wdf.sap.corp/raw/dsp/ci-libraries/master/scripts/pylint.cfg"
+ 
+schedule.scheduleJob(rule, function(){
+  downloadFile(PYLINT_CONFIG, ".pylintrc")
+});
 
 ///////////// HELPER FUNCTIONS
 
@@ -161,16 +175,6 @@ function lint(files, comments_url) {
 }
 
 ////////// API's
-app.get('/fetch-pr/:owner/:repo/:number', (req, res) => {
-  const { owner, repo, number } = req.params
-  fetchPR(owner, repo, number)
-    .then(resp => {
-      data = JSON.parse(resp)
-      let message = checkPR(data)
-      return res.status(200).json({ "success": true, message })
-    })
-    .catch(err => res.status(500).send(err))
-})
 
 app.post('/webhook', (req, res) => {
   let data = JSON.parse(req.body["payload"])
@@ -275,7 +279,6 @@ app.post('/webhook', (req, res) => {
     if (label.toLowerCase().includes("release")) {
       prState["isBodyCheck"] = true
     }
-    console.log("here")
     savePRNumber(pr["number"], pr["base"]["repo"]["full_name"], prState)
   }
 
@@ -284,13 +287,6 @@ app.post('/webhook', (req, res) => {
     console.log('Result saved');
   })
   return res.status(200).send("got it")
-})
-
-app.get('/result', (req, res) => {
-  fs.readFile('result.json', function (err, data) {
-    data = JSON.parse(data)
-    return res.status(200).json(data)
-  });
 })
 
 
